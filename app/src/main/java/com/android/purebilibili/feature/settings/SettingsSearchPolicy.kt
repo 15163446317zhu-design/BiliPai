@@ -600,10 +600,10 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
-        title = "后台播放 / 画中画 / 小窗",
-        subtitle = "设置离开播放页后停止、后台继续或进入小窗",
+        title = "后台播放 / 画中画 / 小窗 / 歌词界面",
+        subtitle = "设置离开播放页后停止、后台继续、进入小窗，以及听视频默认歌词界面",
         section = settingsDestinationCopy(SettingsSearchTarget.PLAYBACK).title,
-        aliases = listOf("后台播放", "画中画", "pip", "小窗", "小窗画中画", "音频焦点", "自动进入画中画", "离开播放页后停止", "视频小横条", "听视频小横条", "听视频横条", "当前视频条", "点击小横条", "小横条跳转详情", "小横条跳转听视频", "now playing"),
+        aliases = listOf("后台播放", "画中画", "pip", "小窗", "小窗画中画", "音频焦点", "自动进入画中画", "离开播放页后停止", "视频小横条", "听视频小横条", "听视频横条", "当前视频条", "点击小横条", "小横条跳转详情", "小横条跳转听视频", "now playing", "歌词界面", "听视频歌词", "沉浸歌词", "沉浸式歌词", "经典歌词", "逐字歌词", "逐字", "halcyon", "歌词样式"),
         focusId = SettingsSearchFocusIds.PLAYBACK_MINI_PLAYER
     ),
     SettingsSearchEntry(
@@ -627,7 +627,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
         title = "自动横竖屏 / 全屏方向 / 平板布局",
         subtitle = "设置进入和退出全屏的方式，以及平板播放页布局",
         section = settingsDestinationCopy(SettingsSearchTarget.PLAYBACK).title,
-        aliases = listOf("自动横竖屏", "自动旋转", "全屏方向", "固定全屏比例", "全屏手势反向", "自动进入全屏", "自动退出全屏", "横屏适配", "平板评论区宽度", "评论区宽度", "评论折叠数量", "评论回复预览", "评论预览数量", "楼中楼", "评论楼中楼", "楼中楼已加载数量", "已加载条数", "评论检测", "发评反诈", "评论发送检测", "评论装扮", "个性装扮", "评论区个性装扮", "图片长按保存", "长按保存图片", "查看图片保存", "播放页隐藏状态栏", "隐藏状态栏", "状态栏", "进度条峰值弹幕", "峰值弹幕", "弹幕热度曲线"),
+        aliases = listOf("自动横竖屏", "自动旋转", "全屏方向", "固定全屏比例", "全屏手势反向", "自动进入全屏", "自动退出全屏", "横屏适配", "平板评论区宽度", "评论区宽度", "评论折叠数量", "评论回复预览", "评论预览数量", "楼中楼", "评论楼中楼", "楼中楼已加载数量", "已加载条数", "评论检测", "发评反诈", "评论发送检测", "评论装扮", "个性装扮", "评论区个性装扮", "图片长按保存", "长按保存图片", "查看图片保存", "播放页隐藏状态栏", "隐藏状态栏", "状态栏", "进度条峰值弹幕", "峰值弹幕", "弹幕热度曲线", "紧凑播放器控件", "紧凑布局", "紧凑控件", "隐藏分享", "隐藏顶栏分享", "顶栏分享", "播放器间距", "控件间距", "播放器控件布局"),
         focusId = SettingsSearchFocusIds.PLAYBACK_FULLSCREEN
     ),
     SettingsSearchEntry(
@@ -670,6 +670,15 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
             "选中图标 1.10 倍",
             "视频小横条联动",
             "底栏收拢",
+            "列表精简搜索",
+            "精简搜索",
+            "隐藏列表搜索栏",
+            "隐藏搜索栏",
+            "收藏搜索",
+            "历史搜索",
+            "稍后看搜索",
+            "稍后再看搜索",
+            "页内搜索",
         ),
         focusId = SettingsSearchFocusIds.BOTTOM_BAR_BEHAVIOR
     ),

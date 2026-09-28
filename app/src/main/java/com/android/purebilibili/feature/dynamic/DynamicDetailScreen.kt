@@ -91,6 +91,7 @@ import com.android.purebilibili.feature.dynamic.components.DynamicInlineCommentC
 import com.android.purebilibili.feature.dynamic.components.DynamicInlineCommentHeader
 import com.android.purebilibili.feature.dynamic.components.DynamicSubReplyPreviewHost
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
+import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnchor
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.feature.dynamic.components.dynamicInlineCommentItems
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
@@ -169,7 +170,7 @@ fun DynamicDetailScreen(
     val gifImageLoader = context.imageLoader
     val defaultDetailImageLayout by SettingsManager.getDynamicDetailImageLayout(context)
         .collectAsStateWithLifecycle(
-            initialValue = SettingsManager.DynamicDetailImageLayout.EXPANDED
+            initialValue = SettingsManager.peekDynamicDetailImageLayout(context)
         )
     var detailImageLayoutOverrideName by rememberSaveable(dynamicId) { mutableStateOf<String?>(null) }
     val effectiveDetailImageLayout = remember(
@@ -203,7 +204,7 @@ fun DynamicDetailScreen(
     var showImagePreview by remember { mutableStateOf(false) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var previewInitialIndex by remember { mutableIntStateOf(0) }
-    var previewSourceRect by remember { mutableStateOf<Rect?>(null) }
+    var previewSourceRect by remember { mutableStateOf<ImagePreviewSourceAnchor?>(null) }
     var previewTextContent by remember { mutableStateOf<ImagePreviewTextContent?>(null) }
     AppScaffold(
         blurContentReady = uiState !is DynamicDetailUiState.Loading,
@@ -694,8 +695,9 @@ fun DynamicDetailScreen(
                     ImagePreviewDialog(
                         images = previewImages,
                         initialIndex = previewInitialIndex,
-                        sourceRect = previewSourceRect,
-                        sourceCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Field).value,
+                        sourceRect = previewSourceRect?.rect,
+                        sourceCornerRadiusDp = previewSourceRect?.cornerRadiusDp
+                            ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
                         textContent = previewTextContent,
                         onDismiss = {
                             showImagePreview = false
@@ -707,8 +709,8 @@ fun DynamicDetailScreen(
                 showRepostDialog?.let { repostDynamicId ->
                     RepostDialog(
                         onDismiss = { showRepostDialog = null },
-                        onRepost = { content: String, onComplete: (Boolean) -> Unit ->
-                            interactionViewModel.repostDynamic(repostDynamicId, content) { success, msg ->
+                        onRepost = { content: String, alsoComment: Boolean, onComplete: (Boolean) -> Unit ->
+                            interactionViewModel.repostDynamic(repostDynamicId, content, alsoComment) { success, msg ->
                                 android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
                                 if (success) {
                                     forwardCountDelta++

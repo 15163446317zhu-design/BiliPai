@@ -488,7 +488,9 @@ enum class PlayerProgressPlacement(
 
 data class PlayerControlVisibilitySettings(
     val showCastButton: Boolean = true,
-    val showFollowButton: Boolean = true
+    val showFollowButton: Boolean = true,
+    /** 紧凑播放器控件：隐藏顶栏分享并收紧顶底栏间距。默认经典布局。 */
+    val compactPlayerChrome: Boolean = false
 )
 
 internal fun normalizeDanmakuDisplayArea(value: Float): Float {
@@ -637,6 +639,7 @@ data class HomeSettings(
     val bottomBarLiquidGlassPreset: BottomBarLiquidGlassPreset =
         BottomBarLiquidGlassPreset.BILIPAI_TUNED,
     val isBottomBarSearchEnabled: Boolean = false,
+    val listScopedSearchEnabled: Boolean = false,
     val bottomBarSearchAutoExpandMode: BottomBarSearchAutoExpandMode =
         BottomBarSearchAutoExpandMode.EXPAND_AT_HOME_TOP,
     val bottomBarSearchLayoutMode: BottomBarSearchLayoutMode =
@@ -655,7 +658,8 @@ data class HomeSettings(
         CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
     val isHeaderCollapseEnabled: Boolean = true,
     val showPgcTimeline: Boolean = true,
-    val gridColumnCount: Int = 0, // [New] 网格列数 (0=自动, 1-6=固定)
+    val gridColumnCount: Int = 0, // [New] 网格列数 (0=自动, 1-6=固定)——宽屏（折叠屏内屏/平板）
+    val gridColumnCountCompact: Int = 0, // [New] 窄屏（折叠屏外屏/手机竖屏）独立列数记忆 (0=自动)
     val pinchToChangeGridColumnsEnabled: Boolean = true, // [新增] 双指缩放切换网格列数
     val homeFeedCardWidthPreset: HomeFeedCardWidthPreset = HomeFeedCardWidthPreset.AUTO,
     val homeFeedCardStyle: HomeFeedCardStyle = HomeFeedCardStyle.BILIPAI,
@@ -1373,12 +1377,14 @@ object SettingsManager {
     private val KEY_DANMAKU_CLOUD_SYNC_ENABLED = booleanPreferencesKey("danmaku_cloud_sync_enabled")
     private val KEY_SHOW_PLAYER_CAST_BUTTON = booleanPreferencesKey("show_player_cast_button")
     private val KEY_SHOW_VIDEO_FOLLOW_BUTTON = booleanPreferencesKey("show_video_follow_button")
+    private val KEY_COMPACT_PLAYER_CHROME = booleanPreferencesKey("compact_player_chrome")
     private val KEY_PLAYER_PROGRESS_PLACEMENT = intPreferencesKey("player_progress_placement")
     private val KEY_SEARCH_HOT_SECTION_ENABLED = booleanPreferencesKey("search_hot_section_enabled")
     private val KEY_SEARCH_DISCOVER_SECTION_ENABLED = booleanPreferencesKey("search_discover_section_enabled")
     //  [新增] 双击跳转秒数 (可分开设置快进和后退)
     private val KEY_DOUBLE_TAP_SEEK_ENABLED = booleanPreferencesKey("double_tap_seek_enabled")
     private val KEY_SEEK_FORWARD_SECONDS = intPreferencesKey("seek_forward_seconds")
+    private val KEY_LIVE_QUALITY = intPreferencesKey("live_quality")
     private val KEY_SEEK_BACKWARD_SECONDS = intPreferencesKey("seek_backward_seconds")
     private val KEY_LONG_PRESS_SPEED_HINT_CLOSE_ENABLED =
         booleanPreferencesKey("long_press_speed_hint_close_enabled")
@@ -1436,6 +1442,9 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     //  搜索结果页分类栏顺序（SearchType.value 逗号分隔）
     private val KEY_SEARCH_FILTER_TAB_ORDER = stringPreferencesKey("search_filter_tab_order")
     private val KEY_DYNAMIC_TAB_VISIBLE_TABS = stringPreferencesKey("dynamic_tab_visible_tabs")
+    private val KEY_DYNAMIC_TAB_ORDER = stringPreferencesKey("dynamic_tab_order")
+    private val KEY_LOUDNESS_NORMALIZATION_ENABLED = booleanPreferencesKey("loudness_normalization_enabled")
+    private val KEY_STARTUP_AUTO_PLAY_ENABLED = booleanPreferencesKey("startup_auto_play_enabled")
     private val KEY_DYNAMIC_IMAGE_PREVIEW_TEXT_VISIBLE =
         booleanPreferencesKey("dynamic_image_preview_text_visible")
     private val KEY_DYNAMIC_DETAIL_IMAGE_LAYOUT = intPreferencesKey("dynamic_detail_image_layout")
@@ -1443,6 +1452,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         booleanPreferencesKey("dynamic_all_tab_horizontal_user_list_visible")
     private val KEY_DYNAMIC_TOP_BAR_COLLAPSE_ON_SCROLL =
         booleanPreferencesKey("dynamic_top_bar_collapse_on_scroll")
+    private val KEY_DYNAMIC_TOP_ACTIONS_COLLAPSED =
+        booleanPreferencesKey("dynamic_top_actions_collapsed")
     private val KEY_LIVE_FAVORITE_TAGS = stringPreferencesKey("live_favorite_tags")
     
     //  [新增] 开屏壁纸
@@ -1487,6 +1498,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     /** 首页顶部 dock 标签数量上限。 */
     const val MAX_TOP_TABS = 5
     private const val DEFAULT_DYNAMIC_TAB_VISIBLE = "all,video,pgc,article,up"
+    private const val DEFAULT_DYNAMIC_TAB_ORDER = "all,video,pgc,article,up"
     //  [新增] 模糊效果开关
     private val KEY_HEADER_BLUR_ENABLED = booleanPreferencesKey("header_blur_enabled")
     private val KEY_HOME_HEADER_BLUR_MODE = intPreferencesKey("home_header_blur_mode")
@@ -1503,6 +1515,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         booleanPreferencesKey("home_search_liquid_glass_enabled")
     private val KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED = booleanPreferencesKey("bottom_bar_liquid_glass_enabled")
     private val KEY_BOTTOM_BAR_SEARCH_ENABLED = booleanPreferencesKey("bottom_bar_search_enabled")
+    private val KEY_LIST_SCOPED_SEARCH_ENABLED = booleanPreferencesKey("list_scoped_search_enabled")
     private val KEY_BOTTOM_BAR_SEARCH_AUTO_EXPAND_MODE =
         intPreferencesKey("bottom_bar_search_auto_expand_mode")
     private val KEY_BOTTOM_BAR_SEARCH_LAYOUT_MODE =
@@ -1526,6 +1539,9 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_SCREEN_DISPLAY_MODE_ID = intPreferencesKey("screen_display_mode_id")
     //  [新增] 网格列数 (0=Auto)
     private val KEY_GRID_COLUMN_COUNT = intPreferencesKey("grid_column_count")
+    //  [新增] 窄屏（折叠屏外屏/手机竖屏）独立列数记忆，与宽屏（内屏/平板）的
+    //  KEY_GRID_COLUMN_COUNT 互不影响；0=Auto（外屏自动解析为 2 列）。
+    private val KEY_GRID_COLUMN_COUNT_COMPACT = intPreferencesKey("grid_column_count_compact")
     private val KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED =
         booleanPreferencesKey("pinch_to_change_grid_columns_enabled")
     private val KEY_HOME_FEED_CARD_WIDTH_PRESET =
@@ -1547,6 +1563,15 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     // 直播间 SC 醒目留言浮层：默认开启；关闭弹幕时一律隐藏，此处提供独立开关
     private val KEY_LIVE_SUPER_CHAT_FLASH_ENABLED =
         booleanPreferencesKey("live_super_chat_flash_enabled")
+    private val KEY_LIVE_DANMAKU_ENABLED = booleanPreferencesKey("live_danmaku_enabled")
+    private val KEY_LIVE_SUPER_CHAT_PERSISTENT =
+        booleanPreferencesKey("live_super_chat_persistent")
+    private val KEY_LIVE_SUPER_CHAT_MAX_WIDTH_DP =
+        intPreferencesKey("live_super_chat_max_width_dp")
+    private val KEY_LIVE_PORTRAIT_EXPAND_ENABLED =
+        booleanPreferencesKey("live_portrait_expand_enabled")
+    private val KEY_LIVE_KEYBOARD_CONTROLS_ENABLED =
+        booleanPreferencesKey("live_keyboard_controls_enabled")
     private val KEY_VIDEO_TRANSITION_REALTIME_BLUR_ENABLED =
         booleanPreferencesKey("video_transition_realtime_blur_enabled")
     private val KEY_VIDEO_SHARED_TRANSITION_SPEED =
@@ -1640,6 +1665,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_AUDIO_NOW_PLAYING_BAR_ENABLED = booleanPreferencesKey("audio_now_playing_bar_enabled")
     private val KEY_AUDIO_NOW_PLAYING_BAR_OPENS_AUDIO_MODE =
         booleanPreferencesKey("audio_now_playing_bar_opens_audio_mode")
+    private val KEY_MUSIC_LYRICS_UI_STYLE = intPreferencesKey("music_lyrics_ui_style")
     private val KEY_VIDEO_AI_SUMMARY_ENTRY_ENABLED = booleanPreferencesKey("video_ai_summary_entry_enabled")
     private val KEY_VIDEO_NOTE_ENABLED = booleanPreferencesKey("video_note_enabled")
     private val KEY_VIDEO_NOTE_DEFAULT_COLLAPSED = booleanPreferencesKey("video_note_default_collapsed")
@@ -1721,6 +1747,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                     ?: (preferences[KEY_TOP_BAR_LIQUID_GLASS_ENABLED] ?: false),
             isBottomBarLiquidGlassEnabled = preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] ?: legacyLiquidGlassEnabled,
             isBottomBarSearchEnabled = preferences[KEY_BOTTOM_BAR_SEARCH_ENABLED] ?: false,
+            listScopedSearchEnabled = preferences[KEY_LIST_SCOPED_SEARCH_ENABLED] ?: false,
             bottomBarSearchAutoExpandMode = BottomBarSearchAutoExpandMode.fromValue(
                 preferences[KEY_BOTTOM_BAR_SEARCH_AUTO_EXPAND_MODE]
                     ?: BottomBarSearchAutoExpandMode.EXPAND_AT_HOME_TOP.value
@@ -1749,6 +1776,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             isHeaderCollapseEnabled = headerCollapseMode.hasAnyCollapse,
             showPgcTimeline = preferences[KEY_SHOW_PGC_TIMELINE] ?: true,
             gridColumnCount = preferences[KEY_GRID_COLUMN_COUNT] ?: 0,
+            gridColumnCountCompact = preferences[KEY_GRID_COLUMN_COUNT_COMPACT] ?: 0,
             pinchToChangeGridColumnsEnabled =
                 preferences[KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED] ?: true,
             homeFeedCardWidthPreset = HomeFeedCardWidthPreset.fromValue(
@@ -1919,7 +1947,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         .map { preferences ->
             PlayerControlVisibilitySettings(
                 showCastButton = preferences[KEY_SHOW_PLAYER_CAST_BUTTON] ?: true,
-                showFollowButton = preferences[KEY_SHOW_VIDEO_FOLLOW_BUTTON] ?: true
+                showFollowButton = preferences[KEY_SHOW_VIDEO_FOLLOW_BUTTON] ?: true,
+                compactPlayerChrome = preferences[KEY_COMPACT_PLAYER_CHROME] ?: false
             )
         }
         .distinctUntilChanged()
@@ -1930,6 +1959,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     suspend fun setShowVideoFollowButton(context: Context, visible: Boolean) {
         context.settingsDataStore.edit { it[KEY_SHOW_VIDEO_FOLLOW_BUTTON] = visible }
+    }
+
+    suspend fun setCompactPlayerChrome(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { it[KEY_COMPACT_PLAYER_CHROME] = enabled }
     }
 
     fun getPlayerProgressPlacement(context: Context): Flow<PlayerProgressPlacement> =
@@ -2685,6 +2718,16 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     fun getSeekForwardSeconds(context: Context): Flow<Int> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_SEEK_FORWARD_SECONDS] ?: 10 }
 
+    /** 直播清晰度记忆（对齐 PiliPlus liveQuality）：0 表示未选择，走默认策略。 */
+    fun getLivePreferredQuality(context: Context): Flow<Int> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_LIVE_QUALITY] ?: 0 }
+
+    suspend fun setLivePreferredQuality(context: Context, qn: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LIVE_QUALITY] = qn
+        }
+    }
+
     suspend fun setSeekForwardSeconds(context: Context, seconds: Int) {
         context.settingsDataStore.edit { preferences -> 
             preferences[KEY_SEEK_FORWARD_SECONDS] = seconds.coerceIn(1, 60)
@@ -3014,8 +3057,15 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         .map { preferences -> preferences[KEY_GRID_COLUMN_COUNT] ?: 0 }
 
     suspend fun setGridColumnCount(context: Context, count: Int) {
-        context.settingsDataStore.edit { preferences -> 
+        context.settingsDataStore.edit { preferences ->
             preferences[KEY_GRID_COLUMN_COUNT] = count
+        }
+    }
+
+    //  窄屏（折叠屏外屏/手机竖屏）独立列数记忆；内屏/平板写 setGridColumnCount。
+    suspend fun setGridColumnCountCompact(context: Context, count: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_GRID_COLUMN_COUNT_COMPACT] = count
         }
     }
 
@@ -3139,9 +3189,63 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         context.settingsDataStore.data
             .map { preferences -> preferences[KEY_LIVE_SUPER_CHAT_FLASH_ENABLED] ?: true }
 
+    fun getLiveDanmakuEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data
+            .map { preferences -> preferences[KEY_LIVE_DANMAKU_ENABLED] ?: true }
+
+    suspend fun setLiveDanmakuEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LIVE_DANMAKU_ENABLED] = value
+        }
+    }
+
     suspend fun setLiveSuperChatFlashEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_LIVE_SUPER_CHAT_FLASH_ENABLED] = value
+        }
+    }
+
+    fun getLiveSuperChatPersistent(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_LIVE_SUPER_CHAT_PERSISTENT] ?: false
+        }
+
+    suspend fun setLiveSuperChatPersistent(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LIVE_SUPER_CHAT_PERSISTENT] = value
+        }
+    }
+
+    fun getLiveSuperChatMaxWidthDp(context: Context): Flow<Int> =
+        context.settingsDataStore.data.map { preferences ->
+            (preferences[KEY_LIVE_SUPER_CHAT_MAX_WIDTH_DP] ?: 360).coerceIn(260, 640)
+        }
+
+    suspend fun setLiveSuperChatMaxWidthDp(context: Context, value: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LIVE_SUPER_CHAT_MAX_WIDTH_DP] = value.coerceIn(260, 640)
+        }
+    }
+
+    fun getLivePortraitExpandEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_LIVE_PORTRAIT_EXPAND_ENABLED] ?: false
+        }
+
+    suspend fun setLivePortraitExpandEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LIVE_PORTRAIT_EXPAND_ENABLED] = value
+        }
+    }
+
+    fun getLiveKeyboardControlsEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_LIVE_KEYBOARD_CONTROLS_ENABLED] ?: true
+        }
+
+    suspend fun setLiveKeyboardControlsEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LIVE_KEYBOARD_CONTROLS_ENABLED] = value
         }
     }
 
@@ -3740,6 +3844,18 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
+    /** 动态栏位顺序：id 用逗号连接，缺失的 id 按默认顺序排在后面。 */
+    fun getDynamicTabOrder(context: Context): Flow<List<String>> = context.settingsDataStore.data.map { prefs ->
+        val orderString = prefs[KEY_DYNAMIC_TAB_ORDER] ?: DEFAULT_DYNAMIC_TAB_ORDER
+        orderString.split(",").filter { it.isNotBlank() }
+    }
+
+    suspend fun setDynamicTabOrder(context: Context, order: List<String>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_DYNAMIC_TAB_ORDER] = order.joinToString(",")
+        }
+    }
+
     fun getDynamicImagePreviewTextVisible(context: Context): Flow<Boolean> =
         context.settingsDataStore.data.map { prefs ->
             prefs[KEY_DYNAMIC_IMAGE_PREVIEW_TEXT_VISIBLE] ?: true
@@ -3766,12 +3882,46 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
+    private const val DYNAMIC_DETAIL_IMAGE_LAYOUT_PREFS = "dynamic_detail_image_layout_cache"
+    private const val CACHE_KEY_DYNAMIC_DETAIL_IMAGE_LAYOUT = "layout"
+
+    @Volatile
+    private var dynamicDetailImageLayoutMemoryCache: DynamicDetailImageLayout? = null
+
+    private fun dynamicDetailImageLayoutPrefs(context: Context) =
+        context.getSharedPreferences(DYNAMIC_DETAIL_IMAGE_LAYOUT_PREFS, Context.MODE_PRIVATE)
+
+    private fun cacheDynamicDetailImageLayout(context: Context, layout: DynamicDetailImageLayout) {
+        if (dynamicDetailImageLayoutMemoryCache == layout) return
+        dynamicDetailImageLayoutMemoryCache = layout
+        dynamicDetailImageLayoutPrefs(context)
+            .edit()
+            .putInt(CACHE_KEY_DYNAMIC_DETAIL_IMAGE_LAYOUT, layout.value)
+            .apply()
+    }
+
+    /**
+     * 同步读取当前图片布局，供详情页首帧使用，避免 DataStore 异步到达前闪一下默认展开布局。
+     */
+    fun peekDynamicDetailImageLayout(context: Context): DynamicDetailImageLayout {
+        dynamicDetailImageLayoutMemoryCache?.let { return it }
+        val layout = DynamicDetailImageLayout.fromValue(
+            dynamicDetailImageLayoutPrefs(context)
+                .getInt(CACHE_KEY_DYNAMIC_DETAIL_IMAGE_LAYOUT, DynamicDetailImageLayout.EXPANDED.value)
+        )
+        dynamicDetailImageLayoutMemoryCache = layout
+        return layout
+    }
+
     fun getDynamicDetailImageLayout(context: Context): Flow<DynamicDetailImageLayout> =
         context.settingsDataStore.data.map { prefs ->
             DynamicDetailImageLayout.fromValue(prefs[KEY_DYNAMIC_DETAIL_IMAGE_LAYOUT] ?: 0)
+        }.onEach { layout ->
+            cacheDynamicDetailImageLayout(context, layout)
         }
 
     suspend fun setDynamicDetailImageLayout(context: Context, layout: DynamicDetailImageLayout) {
+        cacheDynamicDetailImageLayout(context, layout)
         context.settingsDataStore.edit { prefs ->
             prefs[KEY_DYNAMIC_DETAIL_IMAGE_LAYOUT] = layout.value
         }
@@ -3800,6 +3950,21 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     suspend fun setDynamicTopBarCollapseOnScroll(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[KEY_DYNAMIC_TOP_BAR_COLLAPSE_ON_SCROLL] = enabled
+        }
+    }
+
+    /**
+     * 动态顶栏操作坞（布局切换/发布/折叠开关）是否处于折叠态。
+     * 默认展开；折叠后跨冷启动与版本更新保持。
+     */
+    fun getDynamicTopActionsCollapsed(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { prefs ->
+            prefs[KEY_DYNAMIC_TOP_ACTIONS_COLLAPSED] ?: false
+        }
+
+    suspend fun setDynamicTopActionsCollapsed(context: Context, collapsed: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_DYNAMIC_TOP_ACTIONS_COLLAPSED] = collapsed
         }
     }
 
@@ -4040,6 +4205,15 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     suspend fun setBottomBarSearchEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_BOTTOM_BAR_SEARCH_ENABLED] = value
+        }
+    }
+
+    fun getListScopedSearchEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_LIST_SCOPED_SEARCH_ENABLED] ?: false }
+
+    suspend fun setListScopedSearchEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LIST_SCOPED_SEARCH_ENABLED] = value
         }
     }
 
@@ -6216,6 +6390,40 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             .getBoolean("audio_focus_enabled", true)
     }
 
+    /** 响度均衡（播放端 AGC 增益跟随），切换后需重建播放会话生效。 */
+    fun getLoudnessNormalizationEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_LOUDNESS_NORMALIZATION_ENABLED] ?: false
+        }
+
+    suspend fun setLoudnessNormalizationEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LOUDNESS_NORMALIZATION_ENABLED] = value
+        }
+    }
+
+    fun getLoudnessNormalizationEnabledSync(context: Context): Boolean {
+        return context.getSharedPreferences("mini_player", Context.MODE_PRIVATE)
+            .getBoolean("loudness_normalization_enabled", false)
+    }
+
+    /** 冷启动后进入播放场景时自动续播上一次会话。 */
+    fun getStartupAutoPlayEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_STARTUP_AUTO_PLAY_ENABLED] ?: false
+        }
+
+    suspend fun setStartupAutoPlayEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_STARTUP_AUTO_PLAY_ENABLED] = value
+        }
+    }
+
+    fun getStartupAutoPlayEnabledSync(context: Context): Boolean {
+        return context.getSharedPreferences("mini_player", Context.MODE_PRIVATE)
+            .getBoolean("startup_auto_play_enabled", false)
+    }
+
     fun getAudioModeAutoPipEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_AUDIO_MODE_AUTO_PIP_ENABLED] ?: false }
 
@@ -6264,6 +6472,41 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     suspend fun setAudioNowPlayingBarOpensAudioMode(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_AUDIO_NOW_PLAYING_BAR_OPENS_AUDIO_MODE] = value
+        }
+    }
+
+    /**
+     * 听视频歌词界面风格。
+     * - CLASSIC: 现有全屏歌词列
+     * - IMMERSIVE: 沉浸式大字歌词（Halcyon 风格）
+     */
+    enum class MusicLyricsUiStyle(val value: Int, val label: String) {
+        CLASSIC(0, "经典"),
+        IMMERSIVE(1, "沉浸");
+
+        fun next(): MusicLyricsUiStyle = when (this) {
+            CLASSIC -> IMMERSIVE
+            IMMERSIVE -> CLASSIC
+        }
+
+        companion object {
+            fun fromValue(value: Int): MusicLyricsUiStyle = when (value) {
+                1 -> IMMERSIVE
+                else -> CLASSIC
+            }
+        }
+    }
+
+    fun getMusicLyricsUiStyle(context: Context): Flow<MusicLyricsUiStyle> =
+        context.settingsDataStore.data.map { preferences ->
+            MusicLyricsUiStyle.fromValue(
+                preferences[KEY_MUSIC_LYRICS_UI_STYLE] ?: MusicLyricsUiStyle.CLASSIC.value
+            )
+        }
+
+    suspend fun setMusicLyricsUiStyle(context: Context, style: MusicLyricsUiStyle) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_MUSIC_LYRICS_UI_STYLE] = style.value
         }
     }
 
@@ -7645,6 +7888,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             StringShareablePreferenceDefinition(KEY_BLUR_INTENSITY, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_DISPLAY_MODE, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_GRID_COLUMN_COUNT, SettingsShareSection.APPEARANCE),
+            IntShareablePreferenceDefinition(KEY_GRID_COLUMN_COUNT_COMPACT, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(
                 KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED,
                 SettingsShareSection.APPEARANCE
@@ -7715,6 +7959,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 KEY_AUDIO_NOW_PLAYING_BAR_OPENS_AUDIO_MODE,
                 SettingsShareSection.PLAYBACK,
             ),
+            IntShareablePreferenceDefinition(KEY_MUSIC_LYRICS_UI_STYLE, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_VIDEO_AI_SUMMARY_ENTRY_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_VIDEO_NOTE_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_VIDEO_NOTE_DEFAULT_COLLAPSED, SettingsShareSection.PLAYBACK),

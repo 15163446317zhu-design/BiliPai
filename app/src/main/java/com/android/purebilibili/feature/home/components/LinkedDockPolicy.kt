@@ -20,7 +20,8 @@ internal fun resolveLinkedDockRestingPhase(
 ): LinkedDockPhase = when {
     !collapseRequested -> LinkedDockPhase.Expanded
     hasAudio -> LinkedDockPhase.Playback
-    else -> LinkedDockPhase.Compact
+    // 无音频的收起态回到完整底栏：搜索收成小圆钮，避免动态页下滑被 Compact 撑开。
+    else -> LinkedDockPhase.Expanded
 }
 
 fun resolveLinkedDockPhaseOnAudioChange(
@@ -57,6 +58,11 @@ fun resolveLinkedDockPhaseOnSearchDismiss(
     hasAudio: Boolean,
     previousPhase: LinkedDockPhase = if (hasAudio) LinkedDockPhase.Playback else LinkedDockPhase.Expanded,
 ): LinkedDockPhase = resolveLinkedDockPhaseOnAudioChange(previousPhase, hasAudio)
+
+/** 离开搜索展开态（收起/退回其它相位）时清空底栏搜索词，避免下次展开残留。 */
+internal fun shouldResetLinkedDockSearchQuery(
+    phase: LinkedDockPhase,
+): Boolean = phase != LinkedDockPhase.Search
 
 internal data class LinkedDockGeometry(
     val searchWidth: Int,

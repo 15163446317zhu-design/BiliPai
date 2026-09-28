@@ -140,8 +140,8 @@ class LikedVideosViewModel(
 
 class LikedVideosViewModelFactory(
     private val application: Application,
-    private val targetMid: Long,
-    private val ownerName: String,
+    private val targetMid: Long? = null,
+    private val ownerName: String? = null,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -1043,7 +1043,47 @@ class FavoriteViewModel(application: Application) : BaseListViewModel(applicatio
                     .getOrThrow()
                 _folders.value = ownedFolders
                 allFolderIds = ownedFolders.map(::resolveFavoriteFolderMediaId)
+                loadFavoriteFolderPreviewCovers(ownedFolders)
             }
+        }
+    }
+
+    /** Match the profile page behavior: use the first resource as a preview when the API omits folder.cover. */
+    private suspend fun loadFavoriteFolderPreviewCovers(folders: List<com.android.purebilibili.data.model.response.FavFolder>) {
+        val targets = folders.asSequence()
+            .take(6)
+            .filter { it.cover.isBlank() && it.media_count > 0 }
+            .mapNotNull { folder ->
+                resolveFavoriteFolderMediaId(folder).takeIf { it > 0L }?.let { mediaId ->
+                    folder.id to mediaId
+                }
+            }
+            .toList()
+        if (targets.isEmpty()) return
+
+        val semaphore = Semaphore(2)
+        val coversByFolderId = supervisorScope {
+            targets.map { (folderId, mediaId) ->
+                async {
+                    val cover = semaphore.withPermit {
+                        com.android.purebilibili.data.repository.FavoriteRepository.getFavoriteList(
+                            mediaId = mediaId,
+                            pn = 1,
+                            ps = 1,
+                        ).getOrNull()?.medias
+                            ?.firstOrNull { it.cover.isNotBlank() }
+                            ?.cover
+                            .orEmpty()
+                    }
+                    folderId to cover
+                }
+            }.awaitAll()
+        }.filter { (_, cover) -> cover.isNotBlank() }.toMap()
+        if (coversByFolderId.isEmpty()) return
+
+        _folders.value = _folders.value.map { folder ->
+            val cover = coversByFolderId[folder.id]?.trim().orEmpty()
+            if (folder.cover.isBlank() && cover.isNotBlank()) folder.copy(cover = cover) else folder
         }
     }
 

@@ -112,6 +112,11 @@ internal fun LinkedBottomDock(
         }
     }
     var query by remember { mutableStateOf("") }
+    LaunchedEffect(phase) {
+        if (shouldResetLinkedDockSearchQuery(phase)) {
+            query = ""
+        }
+    }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val scroll = LocalHomeScrollOffset.current
@@ -119,7 +124,6 @@ internal fun LinkedBottomDock(
     val scrolling by rememberUpdatedState(isFeedScrollInProgress)
     val threshold = with(LocalDensity.current) { 24.dp.toPx() }
     LaunchedEffect(currentItem, hasAudio, searchEnabled, scroll, threshold, isTopLevelDestination) {
-        if (currentItem != BottomNavItem.HOME) return@LaunchedEffect
         var previous = scroll.floatValue
         var accumulated = 0f
         snapshotFlow { scroll.floatValue to scrolling }.collect { (offset, active) ->
@@ -142,8 +146,14 @@ internal fun LinkedBottomDock(
     // Keep the dock phase while a child destination covers the current tab. Keying this effect
     // by isTopLevelDestination made the returning page re-expand/re-collapse the playback strip,
     // which also shifted the predictive-back target after the gesture had started.
+    // Skip while the list is scrolling so resting phase does not fight scroll-driven search size.
     LaunchedEffect(currentItem, collapseRequested, hasAudio) {
-        if (isTopLevelDestination && currentItem != BottomNavItem.HOME && currentPhase != LinkedDockPhase.Search) {
+        if (
+            isTopLevelDestination &&
+            currentItem != BottomNavItem.HOME &&
+            currentPhase != LinkedDockPhase.Search &&
+            !isFeedScrollInProgress
+        ) {
             updatePhase(resolveLinkedDockRestingPhase(collapseRequested, hasAudio))
         }
     }
@@ -534,9 +544,9 @@ internal fun LinkedBottomDock(
                                 onQueryChange = { query = it },
                                 onSubmit = {
                                     focusManager.clearFocus()
-                                    if (query.isBlank()) onSearchClick() else {
-                                        onSearchKeywordSubmit(query.trim())
-                                    }
+                                    val keyword = query.trim()
+                                    query = ""
+                                    if (keyword.isBlank()) onSearchClick() else onSearchKeywordSubmit(keyword)
                                 },
                                 contentColor = contentColor,
                                 accentColor = accentColor,

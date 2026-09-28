@@ -14,6 +14,7 @@ import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -73,6 +74,8 @@ import com.android.purebilibili.data.repository.BlockedUpRelationSource
 import com.android.purebilibili.data.repository.BlockedUpRepository
 import com.android.purebilibili.data.repository.VideoRepository
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
+import com.android.purebilibili.feature.dynamic.components.isImagePreviewSourceHidden
+import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnchor
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextPlacement
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewCommentContext
 import com.android.purebilibili.feature.dynamic.components.ImageDecodeTarget
@@ -1113,7 +1116,7 @@ fun ReplyItemView(
     onClick: () -> Unit,
     onSubClick: (ReplyItem, Long) -> Unit,
     onTimestampClick: ((Long) -> Unit)? = null,
-    onImagePreview: ((List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit)? = null,
+    onImagePreview: ((List<String>, Int, ImagePreviewSourceAnchor?, ImagePreviewTextContent?) -> Unit)? = null,
     isLiked: Boolean = item.action == 1,
     onLikeClick: (() -> Unit)? = null,
     isHated: Boolean = item.action == 2,
@@ -2757,7 +2760,7 @@ fun TopTag() {
 @Composable
 fun CommentPictures(
     pictures: List<ReplyPicture>,
-    onImageClick: (List<String>, Int, Rect?) -> Unit,
+    onImageClick: (List<String>, Int, ImagePreviewSourceAnchor?) -> Unit,
     testTagPrefix: String = COMMENT_PICTURE_TAG_PREFIX
 ) {
     //  获取高质量图片URL（移除分辨率限制参数）
@@ -2779,6 +2782,9 @@ fun CommentPictures(
     }
     val context = LocalContext.current
     val totalCount = pictures.size  //  [优化] 保存总图片数用于角标显示
+    // 单图 Card / 九宫格 Field 的真实圆角不同，捕获时构造锚点供回位 morph 使用
+    val singleImageCornerDp = AppShapes.containerCornerDp(ContainerLevel.Card).value
+    val gridImageCornerDp = AppShapes.containerCornerDp(ContainerLevel.Field).value
     val thumbnailDecodeSize = remember {
         resolveImageDecodeSize(ImageDecodeTarget.COMMENT_THUMBNAIL)
     }
@@ -2801,6 +2807,7 @@ fun CommentPictures(
                 1.33f  // 默认 4:3 比例
             }
             var imageRect by remember { mutableStateOf<Rect?>(null) }
+            val sourceHidden = isImagePreviewSourceHidden(imageRect)
             
             Box(
                 modifier = Modifier
@@ -2808,12 +2815,19 @@ fun CommentPictures(
                     .heightIn(max = 220.dp)
                     .testTag("${testTagPrefix}0")
                     .aspectRatio(aspectRatio)
+                    .alpha(if (sourceHidden) 0f else 1f)
                     .clip(AppShapes.container(ContainerLevel.Card))  //  [优化] 更大圆角 8dp → 12dp
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .onGloballyPositioned { coordinates ->
                         imageRect = coordinates.boundsInWindow()
                     }
-                    .clickable { onImageClick(imageUrls, 0, imageRect) }
+                    .clickable(enabled = !sourceHidden) {
+                        onImageClick(
+                            imageUrls,
+                            0,
+                            imageRect?.let { ImagePreviewSourceAnchor(it, singleImageCornerDp) }
+                        )
+                    }
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
@@ -2843,17 +2857,25 @@ fun CommentPictures(
                         row.forEachIndexed { colIndex, pic ->
                             val globalIndex = rowIndex * columns + colIndex
                             var imageRect by remember { mutableStateOf<Rect?>(null) }
+                            val sourceHidden = isImagePreviewSourceHidden(imageRect)
                             
                             Box(
                                 modifier = Modifier
                                     .size(85.dp)  //  [优化] 增大尺寸 80dp → 85dp
                                     .testTag("${testTagPrefix}$globalIndex")
+                                    .alpha(if (sourceHidden) 0f else 1f)
                                     .clip(AppShapes.container(ContainerLevel.Field))  //  [优化] 更大圆角 6dp → 10dp
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .onGloballyPositioned { coordinates ->
                                         imageRect = coordinates.boundsInWindow()
                                     }
-                                    .clickable { onImageClick(imageUrls, globalIndex, imageRect) },
+                                    .clickable(enabled = !sourceHidden) {
+                                        onImageClick(
+                                            imageUrls,
+                                            globalIndex,
+                                            imageRect?.let { ImagePreviewSourceAnchor(it, gridImageCornerDp) }
+                                        )
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 AsyncImage(

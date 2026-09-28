@@ -120,10 +120,12 @@ import com.android.purebilibili.feature.anime4k.Anime4KBypassReason
 import com.android.purebilibili.feature.anime4k.Anime4KPreset
 import com.android.purebilibili.feature.anime4k.DEFAULT_FSR_SHARPNESS
 
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -1102,9 +1104,13 @@ fun VideoPlayerOverlay(
     //  双击检测状态
     var lastTapTime by remember { mutableLongStateOf(0L) }
     var showLikeAnimation by remember { mutableStateOf(false) }
-    val overlayVisualPolicy = remember(configuration.screenWidthDp) {
+    val overlayVisualPolicy = remember(
+        configuration.screenWidthDp,
+        playerControlVisibility.compactPlayerChrome
+    ) {
         resolveVideoPlayerOverlayVisualPolicy(
-            widthDp = configuration.screenWidthDp
+            widthDp = configuration.screenWidthDp,
+            compact = playerControlVisibility.compactPlayerChrome
         )
     }
     val landscapeCommentReservedWidth = if (landscapeCommentPanelVisible) {
@@ -1496,6 +1502,7 @@ fun VideoPlayerOverlay(
                         //  [新增] 投屏按钮
                         onCastClick = onCastClickAction,
                         showCastButton = playerControlVisibility.showCastButton,
+                        compactPlayerChrome = playerControlVisibility.compactPlayerChrome,
                         statusBarVisible = playerChromeStatusBarVisible,
                         modifier = Modifier.align(Alignment.TopStart)
                     )
@@ -1527,6 +1534,7 @@ fun VideoPlayerOverlay(
                     isPlaying = effectiveIsPlaying,
                     progress = displayedProgressState,
                     isFullscreen = isFullscreen,
+                    compactPlayerChrome = playerControlVisibility.compactPlayerChrome,
                     currentSpeed = currentSpeed,
                     currentRatio = currentAspectRatio,
                     onPlayPauseClick = {
@@ -2445,7 +2453,7 @@ fun VideoPlayerOverlay(
 /**
  *  竖屏模式顶部控制栏
  * 
- * 包含返回首页按钮、设置按钮和分享按钮
+ * 包含返回首页按钮、听视频/投屏与更多菜单；经典布局另有分享按钮
  */
 @Composable
 private fun PortraitTopBar(
@@ -2460,6 +2468,8 @@ private fun PortraitTopBar(
     // 📺 [新增] 投屏
     onCastClick: () -> Unit = {},
     showCastButton: Boolean = true,
+    /** 紧凑布局隐藏顶栏分享，并收紧按钮间距。 */
+    compactPlayerChrome: Boolean = false,
     /** 系统状态栏可见时为顶栏加 statusBarsPadding，避免与系统图标重叠。 */
     statusBarVisible: Boolean = true,
     modifier: Modifier = Modifier
@@ -2472,9 +2482,10 @@ private fun PortraitTopBar(
     }
     val moreIcon = rememberAppMoreIcon()
     val shareIcon = rememberAppShareIcon()
-    val layoutPolicy = remember(uiLayoutWidthDp) {
+    val layoutPolicy = remember(uiLayoutWidthDp, compactPlayerChrome) {
         resolvePortraitTopBarLayoutPolicy(
-            widthDp = uiLayoutWidthDp
+            widthDp = uiLayoutWidthDp,
+            compact = compactPlayerChrome
         )
     }
 
@@ -2622,18 +2633,20 @@ private fun PortraitTopBar(
                     )
                 }
             }
-            
-            // 分享按钮 - 无背景
-            AppIconButton(
-                onClick = onShare,
-                modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
-            ) {
-                AppIcon(
-                    imageVector = shareIcon,
-                    contentDescription = "分享",
-                    tint = Color.White,
-                    modifier = Modifier.size(layoutPolicy.iconSizeDp.dp)
-                )
+
+            if (!compactPlayerChrome) {
+                // 分享按钮 - 无背景
+                AppIconButton(
+                    onClick = onShare,
+                    modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
+                ) {
+                    AppIcon(
+                        imageVector = shareIcon,
+                        contentDescription = "分享",
+                        tint = Color.White,
+                        modifier = Modifier.size(layoutPolicy.iconSizeDp.dp)
+                    )
+                }
             }
         }
     }
@@ -2973,8 +2986,12 @@ indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
                     // 3. 列表内容
                     Box(modifier = Modifier.weight(1f)) {
                         if (selectedTab == 0) {
-                            // 推荐视频列表
+                            // 推荐视频列表（滚动位置跨抽屉开关保留）
+                            val relatedListState = rememberSaveable(
+                                saver = LazyListState.Saver
+                            ) { LazyListState() }
                             LazyColumn(
+                                state = relatedListState,
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(layoutPolicy.listContentPaddingDp.dp),
                                 verticalArrangement = Arrangement.spacedBy(layoutPolicy.listItemSpacingDp.dp)
